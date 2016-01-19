@@ -16,6 +16,7 @@ public class AdtHashmapImpl implements AdtHashmap {
     private static String STRATEGY;
     private static String FILENAME;
     private static int prime;
+    private static int primeQ;
 
     private AdtHashmapImpl() {
         fileInput = new ArrayList<String>();
@@ -44,7 +45,9 @@ public class AdtHashmapImpl implements AdtHashmap {
         } finally {
             scanner.close();
         }
-        prime = berechnePrimZahl();
+        prime = berechnePrimZahl(fileInput.size());
+        primeQ = berechnePrimZahlQ(prime + 1);
+
         hashTable = new String[fileInput.size()];
         for (String string : fileInput) {
             insert(string);
@@ -71,11 +74,54 @@ public class AdtHashmapImpl implements AdtHashmap {
                 }
             }
         } else if (STRATEGY.equals("Q")) {
+            for (int i = 0; i < fileInput.size(); i++) {
+                int n = (int) (hash - (Math.pow(-1, i) * Math.pow(Math.ceil(i / 2), 2)));
+                n = n < 0 ? Math.floorMod(n, primeQ) : (n % primeQ);
 
-        } else if (STRATEGY.equals("B")) {
-
+                if (hashTable[n % fileInput.size()] == null) {
+                    return n;
+                }
+            }
+        } else if (STRATEGY.equals("B")) { // TODO: Fragen ob richtig
+                                           // umgesetzt?!
+            int doubleHashNew = doubleHashing(elem, 0); // TODO: doubleHashing
+                                                        // nicht verstanden
+            if (hashTable[doubleHashNew % fileInput.size()] == null) {
+                return doubleHashNew;
+            } else {
+                int doubleHashOld = doubleHashNew;
+                String oldElem = hashTable[doubleHashOld % fileInput.size()];
+                int countOld = 0;
+                while (hashTable[doubleHashOld % fileInput.size()] != null) {
+                    countOld++;
+                    doubleHashOld = doubleHashing(oldElem, countOld);
+                }
+                String newElem = elem;
+                int countNew = 0;
+                while (hashTable[doubleHashNew % fileInput.size()] != null) {
+                    countNew++;
+                    doubleHashNew = doubleHashing(newElem, countNew);
+                }
+                if (countNew <= countOld) {
+                    return doubleHashNew;
+                } else {
+                    return doubleHashOld;
+                }
+            }
         }
-        return -1;
+        return Integer.MIN_VALUE;
+    }
+
+    private int doubleHashing(String elem, int j) {
+        int hash = divRest(elem);
+        int n = (int) (hash - (j * divRest2(elem)));
+        n = n < 0 ? Math.floorMod(n, primeQ) : (n % primeQ);
+
+        // if (hashTable[n % fileInput.size()] == null) {
+        return n;
+        // }
+
+        // return Integer.MIN_VALUE;
     }
 
     /**
@@ -93,10 +139,25 @@ public class AdtHashmapImpl implements AdtHashmap {
         return result;
     }
 
+    private int divRest2(String elem) {
+        int result = 0;
+        byte[] tmp = elem.getBytes();
+        for (int i = 0; i < elem.length(); i++) {
+            result = result + (1 + (tmp[i] % (prime - 2)));
+        }
+        return result;
+    }
+
     @Override
     public void insert(String elem) {
-        int pos = sondieren(elem);
-        hashTable[pos] = elem;
+        int sondier = sondieren(elem);
+        if (sondier == Integer.MIN_VALUE) {
+            System.err.println("Element \"" + elem + "\" konnte nicht einsortiert werden");
+        } else {
+            int pos = sondier % hashTable.length;
+            hashTable[pos] = elem;
+        }
+        out();
     }
 
     @Override
@@ -105,8 +166,8 @@ public class AdtHashmapImpl implements AdtHashmap {
         return 0;
     }
 
-    private int berechnePrimZahl() {
-        int n = fileInput.size();
+    private int berechnePrimZahl(int start) {
+        int n = start;
         boolean b = false;
         while (!b) {
             // check if n is a multiple of 2
@@ -125,12 +186,35 @@ public class AdtHashmapImpl implements AdtHashmap {
         }
         return n;
     }
-    
+
+    private int berechnePrimZahlQ(int start) {
+        int result = 0;
+        boolean b = false;
+
+        while (!b) {
+            int prime = berechnePrimZahl(start);
+            if (((prime - 3) / 4) % 2 == 0) {
+                b = true;
+                result = prime;
+            }
+            start = prime + 1;
+        }
+        System.err.println("primeQ: " + result);
+        return result;
+    }
+
     public static void main(String[] args) {
-        AdtHashmap hash = AdtHashmapImpl.create("L", "doc/test.txt");
-        System.err.println(hashTable[0]);
-        System.err.println(hashTable[1]);
-        System.err.println(hashTable[2]);
-        System.err.println(fileInput);
+        @SuppressWarnings("unused")
+        AdtHashmap hash = AdtHashmapImpl.create("B", "doc/kurz.txt");
+
+        out();
+        System.err.println("fertig");
+    }
+
+    private static void out() {
+        for (int i = 0; i < hashTable.length; i++) {
+            System.err.print("hashTable[" + i + "] = " + hashTable[i] + "   ");
+        }
+        System.err.println();
     }
 }
