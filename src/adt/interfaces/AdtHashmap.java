@@ -9,4 +9,10 @@ public interface AdtHashmap {
     public void insert(String elem);
     
     public int find(String elem);
+    
+    public void log();
+    
+    public long insertRuntime(String elem);
+    
+    public long findRuntime(String elem);
 }

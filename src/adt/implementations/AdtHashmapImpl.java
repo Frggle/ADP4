@@ -3,9 +3,16 @@ package adt.implementations;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Scanner;
+import java.util.Set;
+
+import com.sun.org.apache.xalan.internal.xsltc.compiler.sym;
 
 import adt.interfaces.AdtHashmap;
 
@@ -74,18 +81,20 @@ public class AdtHashmapImpl implements AdtHashmap {
                 }
             }
         } else if (STRATEGY.equals("Q")) {
-            for (int i = 0; i < fileInput.size(); i++) {
+            for (int i = 0; i < fileInput.size() *2; i++) {
+                // TODO: warum nur n-Schritte?! -> werden alle Position
+                // erreicht?
                 int n = (int) (hash - (Math.pow(-1, i) * Math.pow(Math.ceil(i / 2), 2)));
                 n = n < 0 ? Math.floorMod(n, primeQ) : (n % primeQ);
 
-                if (hashTable[n % fileInput.size()] == null) {
+                n = n % fileInput.size();
+                if (hashTable[n] == null) {
                     return n;
                 }
             }
-        } else if (STRATEGY.equals("B")) { // TODO: Fragen ob richtig
-                                           // umgesetzt?!
-            int doubleHashNew = doubleHashing(elem, 0); // TODO: doubleHashing
-                                                        // nicht verstanden
+        } else if (STRATEGY.equals("B")) {
+            // TODO: Fragen ob richtig umgesetzt?!
+            int doubleHashNew = doubleHashing(elem, 0);
             if (hashTable[doubleHashNew % fileInput.size()] == null) {
                 return doubleHashNew;
             } else {
@@ -117,11 +126,7 @@ public class AdtHashmapImpl implements AdtHashmap {
         int n = (int) (hash - (j * divRest2(elem)));
         n = n < 0 ? Math.floorMod(n, primeQ) : (n % primeQ);
 
-        // if (hashTable[n % fileInput.size()] == null) {
         return n;
-        // }
-
-        // return Integer.MIN_VALUE;
     }
 
     /**
@@ -154,16 +159,46 @@ public class AdtHashmapImpl implements AdtHashmap {
         if (sondier == Integer.MIN_VALUE) {
             System.err.println("Element \"" + elem + "\" konnte nicht einsortiert werden");
         } else {
-            int pos = sondier % hashTable.length;
+            int pos = sondier;
             hashTable[pos] = elem;
         }
-        out();
+//        out();
     }
 
     @Override
     public int find(String elem) {
-        // TODO Auto-generated method stub
-        return 0;
+        int hash = divRest(elem);
+        int count = 0;
+
+        if (STRATEGY.equals("L")) {
+            for (int i = hash; i < fileInput.size(); i++) {
+                if (hashTable[i].equals(elem)) {
+                    count++;
+                }
+            }
+            for (int i = 0; i < hash; i++) {
+                if (hashTable[i].equals(elem)) {
+                    count++;
+                }
+            }
+        } else if (STRATEGY.equals("Q")) {
+            for (int i = 0; i < fileInput.size() + 100; i++) {
+                // TODO: zaehlt Elemente doppelt!!
+                int n = (int) (hash - (Math.pow(-1, i) * Math.pow(Math.ceil(i / 2), 2)));
+                n = n < 0 ? Math.floorMod(n, primeQ) : (n % primeQ);
+
+                System.err.println(hashTable.length);
+                if (hashTable[n % fileInput.size()].equals(elem)) {
+                    count++;
+                }
+            }
+        } else if (STRATEGY.equals("B")) {
+
+        } else {
+            return Integer.MIN_VALUE;
+        }
+
+        return count;
     }
 
     private int berechnePrimZahl(int start) {
@@ -199,16 +234,48 @@ public class AdtHashmapImpl implements AdtHashmap {
             }
             start = prime + 1;
         }
-        System.err.println("primeQ: " + result);
         return result;
     }
 
     public static void main(String[] args) {
-        @SuppressWarnings("unused")
-        AdtHashmap hash = AdtHashmapImpl.create("B", "doc/kurz.txt");
+        AdtHashmap hash = AdtHashmapImpl.create("L", "doc/lang.txt");
 
-        out();
+        hash.log();
         System.err.println("fertig");
+    }
+    
+    @Override
+    public void log() {
+        PrintWriter writer = null;
+        try {
+             writer = new PrintWriter("log.txt", "UTF-8");
+            
+            Set<String> set = new HashSet<String>(fileInput);
+            Iterator<String> iter = set.iterator();
+            while(iter.hasNext()) {
+                String elem = iter.next();
+                writer.write(elem + ": " + this.find(elem) + "\n");
+            }
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+        } finally {
+            writer.close();
+        }
+    }
+    
+    @Override
+    public long insertRuntime(String elem) {
+        // TODO: laeubt ueber das #create()
+        return 0;
+    }
+    
+    @Override
+    public long findRuntime(String elem) {
+        long start = System.nanoTime();
+        this.find(elem);
+        return System.nanoTime() - start;
     }
 
     private static void out() {
