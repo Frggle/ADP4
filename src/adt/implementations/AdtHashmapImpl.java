@@ -110,8 +110,6 @@ public class AdtHashmapImpl implements AdtHashmap {
      * @return
      */
     private int hashFunction(HashObject hashObject, int hash) {
-        // hashObject.inkrementKollision();
-
         if (STRATEGY.equals("L")) {
             return linearNext(hash);
         } else if (STRATEGY.equals("Q")) {
@@ -121,8 +119,8 @@ public class AdtHashmapImpl implements AdtHashmap {
             int nextIndexOfNewElem = doubleHashing(hashObject, hash, hashObject.getKollision());
             int nextIndexOfExistingElem = doubleHashing(existingElem, hash, existingElem.getKollision() + 1);
             if (hashObject.getValue().equals(existingElem.getValue())) {
-            hashTable[hash].inkrementVorkommen();
-            return Integer.MAX_VALUE;
+                hashTable[hash].inkrementVorkommen();
+                return Integer.MAX_VALUE;
             } else if (hashTable[nextIndexOfNewElem] == null) {
                 return nextIndexOfNewElem;
             } else if (hashObject.getValue().equals(hashTable[nextIndexOfNewElem].getValue())) {
@@ -138,68 +136,6 @@ public class AdtHashmapImpl implements AdtHashmap {
             }
         }
         return Integer.MIN_VALUE;
-        // for (int i = m; i >= hash; i--) {
-        // int j = i % m;
-        // if (hashTable[j] == null) {
-        // return i;
-        // } else if (hashObject.getValue().equals(hashTable[j].getValue()))
-        // {
-        // hashTable[j].inkrementVorkommen();
-        // return Integer.MAX_VALUE;// doppelte Vorkommen erkannt
-        // }
-        // }
-        // } else if (STRATEGY.equals("Q")) {
-        // for (int i = 0; i < m * 2; i++) {
-        // int n = (int) (hash - (Math.pow(-1, i) * Math.pow(Math.ceil(i /
-        // 2), 2)));
-        // n = n < 0 ? Math.floorMod(n, m) : (n % m);
-        //
-        // if (hashTable[n] == null) {
-        // return n;
-        // } else if (hashObject.getValue().equals(hashTable[n].getValue()))
-        // {
-        // hashTable[n].inkrementVorkommen();
-        // return Integer.MAX_VALUE;// doppelte Vorkommen erkannt
-        // } else {
-        // hashTable[n].inkrementKollision();
-        // }
-        // }
-        // } else if (STRATEGY.equals("B")) {
-        // for (int i = 0; i < m * 2; i++) {
-        // out();
-        // int currentHash = doubleHashing(hash, hashObject.getValue(),
-        // hashObject.getKollision());
-        // if (hashTable[currentHash] == null) {
-        // return currentHash;
-        // } else {
-        // HashObject existingElem = hashTable[hash];
-        // hashObject.inkrementKollision();
-        // int nextIndexOfNewElem = doubleHashing(hash,
-        // hashObject.getValue(), hashObject.getKollision());
-        // int nextIndexOfExistingElem = doubleHashing(hash,
-        // existingElem.getValue(),
-        // existingElem.getKollision() + 1);
-        // if (existingElem.getValue().equals(hashObject.getValue())) {
-        // existingElem.inkrementVorkommen();
-        // existingElem.inkrementKollision();
-        // return Integer.MAX_VALUE; // doppelte Vorkommen erkannt
-        // } else {
-        // if (hashTable[nextIndexOfNewElem] == null) {
-        // // hashObject.inkrementKollision();
-        // return nextIndexOfNewElem;
-        // } else if (hashTable[nextIndexOfExistingElem] == null) {
-        // hashTable[nextIndexOfExistingElem] = existingElem;
-        // hashTable[currentHash] = null;
-        // hashObject.inkrementKollision();
-        // return currentHash;
-        // } else {
-        // hashObject.inkrementKollision();
-        // }
-        // }
-        // }
-        // }
-        // }
-
     }
 
     /**
@@ -232,9 +168,8 @@ public class AdtHashmapImpl implements AdtHashmap {
         int hash = builtHashValue(hashObject.getValue());
         if (hashTable[hash] == null) {
             hashTable[hash] = hashObject;
-            out();
         } else {
-            if(hashTable[hash].getValue().equals(hashObject.getValue())) {
+            if (hashTable[hash].getValue().equals(hashObject.getValue())) {
                 hashTable[hash].inkrementVorkommen();
             } else {
                 for (int i = 0; i < m; i++) {
@@ -244,7 +179,6 @@ public class AdtHashmapImpl implements AdtHashmap {
                         hash = pos;
                         if (hashTable[hash] == null) {
                             hashTable[hash] = hashObject;
-                            out();
                             break;
                         } else if (hashTable[hash].getValue().equals(hashObject.getValue())) {
                             hashTable[hash].inkrementVorkommen();
@@ -263,21 +197,35 @@ public class AdtHashmapImpl implements AdtHashmap {
 
     @Override
     public int find(String elem) {
-        // HashObject hashObject = new HashObject(elem);
-        // int pos = hashFunction(hashObject);
-        // if (pos == Integer.MAX_VALUE) {
-        // System.err.println(0);
-        // return 0;
-        // } else if (hashTable[pos] == null) {
-        // System.err.println(-1);
-        // return -1;
-        // } else {
-        // System.err.println(pos);
-        // System.err.println(hashTable[pos].getValue());
-        // out();
-        // return hashTable[pos].getVorkommen();
-        // }
-        return 0;
+        HashObject hashObject = new HashObject(elem);
+        int hash = builtHashValue(hashObject.getValue());
+        int pos = -1;
+        if (hashTable[hash].getValue().equals(hashObject.getValue())) {
+            return hashTable[hash].getVorkommen();
+        }
+        if (STRATEGY.equals("B")) {
+            for(int i = 1; i <= m * 2; i++) {
+                pos = doubleHashing(hashObject, hash, i);
+                if (hashTable[pos].getValue().equals(hashObject.getValue())) {
+                    return hashTable[pos].getVorkommen();
+                } else {
+                     hash = pos;
+                }
+            }
+        } else {
+            for (int i = 1; i <= m * 2; i++) {
+                pos = hashFunction(hashObject, i);
+                if(hashTable[pos] != null) {
+                    if (hashTable[pos].getValue().equals(hashObject.getValue())) {
+                        return hashTable[pos].getVorkommen();
+                    } else {
+                         hash = pos;
+                    }
+                }
+            }
+        }
+
+        return -1;
     }
 
     @Override
@@ -291,6 +239,10 @@ public class AdtHashmapImpl implements AdtHashmap {
             while (iter.hasNext()) {
                 String elem = iter.next();
                 int findResult = this.find(elem);
+                System.err.println(elem + ": " + findResult);
+                if(elem.equals("lorem")) {
+                    System.err.println();
+                }
                 writer.write(elem + ": " + findResult + "\n");
                 woerterZaehlen += findResult;
             }
@@ -328,15 +280,12 @@ public class AdtHashmapImpl implements AdtHashmap {
     }
 
     public static void main(String[] args) {
-        int b = (int) (Math.ceil(2.0 / 3));
-        System.err.println("out: " + b);
-
         AdtHashmap hash = AdtHashmapImpl.create("Q", 10);
         hash.dateiImport("doc/kurz.txt", 101);
 
         out();
 
-        System.err.println(hash.find("lorem"));
+        System.err.println(hash.find("sea"));
         hash.log();
         System.err.println("fertig");
     }
