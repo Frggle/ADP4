@@ -144,26 +144,30 @@ public class AdtHashmapImpl implements AdtHashmap {
 		HashObject hashObject = new HashObject(elem);
 		int hash = builtHashValue(hashObject.getValue());
 		int pos = -1;
-		if(hashTable[hash].getValue().equals(hashObject.getValue())) {
-			return hashTable[hash].getVorkommen();
-		}
-		if(strategie.equals("B")) {
-			for(int i = 1; i <= m * 2; i++) {
-				pos = doubleHashing(hashObject, hash, i);
-				if(hashTable[pos].getValue().equals(hashObject.getValue())) {
-					return hashTable[pos].getVorkommen();
-				} else {
-					hash = pos;
-				}
+		if(hashTable[hash] != null) {	// abfangen, wenn hash nicht enthalten
+			if(hashTable[hash].getValue().equals(hashObject.getValue())) {
+				return hashTable[hash].getVorkommen();
 			}
-		} else {
-			for(int i = 1; i <= m * 2; i++) {
-				pos = hashFunction(hashObject, i);
-				if(hashTable[pos] != null) {
-					if(hashTable[pos].getValue().equals(hashObject.getValue())) {
-						return hashTable[pos].getVorkommen();
-					} else {
-						hash = pos;
+			if(strategie.equals("B")) {
+				for(int i = 1; i <= m * 2; i++) {
+					pos = doubleHashing(hashObject, hash, i);
+					if(hashTable[pos] != null) {
+						if(hashTable[pos].getValue().equals(hashObject.getValue())) {
+							return hashTable[pos].getVorkommen();
+						} else {
+							hash = pos;
+						}
+					}
+				}
+			} else {
+				for(int i = 1; i <= m * 2; i++) {
+					pos = hashFunction(hashObject, i);
+					if(hashTable[pos] != null) {
+						if(hashTable[pos].getValue().equals(hashObject.getValue())) {
+							return hashTable[pos].getVorkommen();
+						} else {
+							hash = pos;
+						}
 					}
 				}
 			}
@@ -329,8 +333,10 @@ public class AdtHashmapImpl implements AdtHashmap {
 	 * Main Methode
 	 */
 	public static void main(String[] args) {
-		AdtHashmap hash = AdtHashmapImpl.create("Q", 10);
+		AdtHashmap hash = AdtHashmapImpl.create("B", 10);
 		hash.dataImport("doc/kurz.txt", 101);
+		
+		System.err.println(hash.find("ipsu"));
 		
 		out();
 		hash.log();
