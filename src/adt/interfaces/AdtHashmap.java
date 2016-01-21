@@ -2,11 +2,13 @@ package adt.interfaces;
 
 public interface AdtHashmap {
 
-    public static AdtHashmap create(String strategy, String filename) {
+    public static AdtHashmap create(String strategy, int size) {
         return null;
     }
     
     public void insert(String elem);
+    
+    public void dateiImport(String filename, int size);
     
     public int find(String elem);
     

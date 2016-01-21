@@ -12,31 +12,55 @@ import java.util.List;
 import java.util.Scanner;
 import java.util.Set;
 
-import com.sun.org.apache.xalan.internal.xsltc.compiler.sym;
-
+import adt.HashObject;
 import adt.interfaces.AdtHashmap;
 
 public class AdtHashmapImpl implements AdtHashmap {
 
     private static List<String> fileInput;
-    private static String[] hashTable;
+    private static HashObject[] hashTable;
     private static String STRATEGY;
     private static String FILENAME;
-    private static int prime;
-    private static int primeQ;
+
+    private static int m; // Array- Groesse
 
     private AdtHashmapImpl() {
-        fileInput = new ArrayList<String>();
-        readFile();
+        hashTable = new HashObject[m];
     }
 
-    public static AdtHashmap create(String strategy, String filename) {
+    /**
+     * Initialisieren
+     * 
+     * @param strategy
+     * @param size
+     * @return
+     */
+    public static AdtHashmap create(String strategy, int size) {
         STRATEGY = strategy;
-        FILENAME = filename;
+        m = size;
 
         return new AdtHashmapImpl();
     }
 
+    /**
+     * Datei importieren
+     * 
+     * @param size
+     *            , sollte Prim > Anzahl Woerter in Datei
+     * @param filename
+     */
+    @Override
+    public void dateiImport(String filename, int size) {
+        FILENAME = filename;
+        m = size;
+        fileInput = new ArrayList<String>();
+        new AdtHashmapImpl();
+        readFile();
+    }
+
+    /**
+     * Datei importieren, intern
+     */
     private void readFile() {
         File file = new File(FILENAME);
         Scanner scanner = null;
@@ -52,10 +76,7 @@ public class AdtHashmapImpl implements AdtHashmap {
         } finally {
             scanner.close();
         }
-        prime = berechnePrimZahl(fileInput.size());
-        primeQ = berechnePrimZahlQ(prime + 1);
 
-        hashTable = new String[fileInput.size()];
         for (String string : fileInput) {
             insert(string);
         }
@@ -66,196 +87,174 @@ public class AdtHashmapImpl implements AdtHashmap {
      * 
      * @return
      */
-    private int sondieren(String elem) {
-        int hash = divRest(elem);
+    private int hashFunction(HashObject hashObject) {
+        int hash = builtHashValue(hashObject.getValue());
 
         if (STRATEGY.equals("L")) {
-            for (int i = hash; i < fileInput.size(); i++) {
+            for (int i = hash; i >= 0; i--) {
+                i = i % m;
                 if (hashTable[i] == null) {
                     return i;
+                } else if (hashObject.getValue().equals(hashTable[i].getValue())) {
+                    hashTable[i].inkrementVorkommen();
+                    return Integer.MAX_VALUE;// doppelte Vorkommen erkannt
                 }
+                hashTable[i].inkrementKollision();
             }
-            for (int i = 0; i < hash; i++) {
-                if (hashTable[i] == null) {
+            for (int i = m; i >= hash; i--) {
+                int j = i % m;
+                if (hashTable[j] == null) {
                     return i;
+                } else if (hashObject.getValue().equals(hashTable[j].getValue())) {
+                    hashTable[j].inkrementVorkommen();
+                    return Integer.MAX_VALUE;// doppelte Vorkommen erkannt
                 }
             }
         } else if (STRATEGY.equals("Q")) {
-            for (int i = 0; i < fileInput.size() *2; i++) {
-                // TODO: warum nur n-Schritte?! -> werden alle Position
-                // erreicht?
+            for (int i = 0; i < m * 2; i++) {
                 int n = (int) (hash - (Math.pow(-1, i) * Math.pow(Math.ceil(i / 2), 2)));
-                n = n < 0 ? Math.floorMod(n, primeQ) : (n % primeQ);
+                n = n < 0 ? Math.floorMod(n, m) : (n % m);
 
-                n = n % fileInput.size();
                 if (hashTable[n] == null) {
                     return n;
+                } else if (hashObject.getValue().equals(hashTable[n].getValue())) {
+                    hashTable[n].inkrementVorkommen();
+                    return Integer.MAX_VALUE;// doppelte Vorkommen erkannt
+                } else {
+                    hashTable[n].inkrementKollision();
                 }
             }
         } else if (STRATEGY.equals("B")) {
-            // TODO: Fragen ob richtig umgesetzt?!
-            int doubleHashNew = doubleHashing(elem, 0);
-            if (hashTable[doubleHashNew % fileInput.size()] == null) {
-                return doubleHashNew;
-            } else {
-                int doubleHashOld = doubleHashNew;
-                String oldElem = hashTable[doubleHashOld % fileInput.size()];
-                int countOld = 0;
-                while (hashTable[doubleHashOld % fileInput.size()] != null) {
-                    countOld++;
-                    doubleHashOld = doubleHashing(oldElem, countOld);
-                }
-                String newElem = elem;
-                int countNew = 0;
-                while (hashTable[doubleHashNew % fileInput.size()] != null) {
-                    countNew++;
-                    doubleHashNew = doubleHashing(newElem, countNew);
-                }
-                if (countNew <= countOld) {
-                    return doubleHashNew;
+            for (int i = 0; i < m * 2; i++) {
+                out();
+                int currentHash = doubleHashing(hash, hashObject.getValue(), hashObject.getKollision());
+                if (hashTable[currentHash] == null) {
+                    return currentHash;
                 } else {
-                    return doubleHashOld;
+                    HashObject existingElem = hashTable[hash];
+                    hashObject.inkrementKollision();
+                    int nextIndexOfNewElem = doubleHashing(hash, hashObject.getValue(), hashObject.getKollision());
+                    int nextIndexOfExistingElem = doubleHashing(hash, existingElem.getValue(), existingElem.getKollision() + 1);
+                    if(existingElem.getValue().equals(hashObject.getValue())) {
+                        existingElem.inkrementVorkommen();
+                        existingElem.inkrementKollision();
+                        return Integer.MAX_VALUE; // doppelte Vorkommen erkannt
+                    } else {
+                        if(hashTable[nextIndexOfNewElem] == null) {
+//                            hashObject.inkrementKollision();
+                            return nextIndexOfNewElem;
+                        } else if(hashTable[nextIndexOfExistingElem] == null) {
+                            hashTable[nextIndexOfExistingElem] = existingElem;
+                            hashTable[currentHash] = null;
+                            hashObject.inkrementKollision();
+                            return currentHash;
+                        } else {
+                            hashObject.inkrementKollision();
+                        }
+                    }
                 }
+//                else {
+//                    if (hashObject.getValue().equals(hashTable[currentHash].getValue())) {
+//                        hashTable[currentHash].inkrementVorkommen();
+//                        return Integer.MAX_VALUE;// doppelte Vorkommen erkannt
+//                    }
+//
+//                    hashObject.inkrementKollision();
+//                    int nextIndexOfNewElem = doubleHashing(hash, hashObject.getValue(), hashObject.getKollision());
+//                    if (hashTable[nextIndexOfNewElem] != null) {
+//                        HashObject existingElem = hashTable[hash];
+//                        int nextIndexOfExistingElem = doubleHashing(hash, existingElem.getValue(),
+//                                existingElem.getKollision() + 1);
+//                        if (hashTable[nextIndexOfExistingElem] == null) {
+//                            hashTable[nextIndexOfExistingElem] = existingElem;
+//                            hashTable[hash] = null;
+//                        }
+//                    } else {
+//                        hashObject.dekrementKollision();
+//                        return nextIndexOfNewElem; // ergaenzt .. loest nicht das Problem
+//                    }
+//                }
             }
         }
         return Integer.MIN_VALUE;
     }
 
-    private int doubleHashing(String elem, int j) {
-        int hash = divRest(elem);
-        int n = (int) (hash - (j * divRest2(elem)));
-        n = n < 0 ? Math.floorMod(n, primeQ) : (n % primeQ);
+    private int doubleHashing(int hash, String elem, int j) {
+        int n = (int) (hash - (j * builtHashValueStrich(elem)));
+        n = n < 0 ? Math.floorMod(n, m) : (n % m);
 
         return n;
     }
 
     /**
-     * Wandelt einen String in ASCII um
+     * Wandelt einen String in ASCII um und gibt den Hashwert zurueck
      * 
      * @param elem
      * @return
      */
-    private int divRest(String elem) {
+    private int builtHashValue(String elem) {
         int result = 0;
         byte[] tmp = elem.getBytes();
         for (int i = 0; i < elem.length(); i++) {
-            result = (result * 128 + tmp[i]) % prime;
+            result = (result * 128 + tmp[i]) % m;
         }
         return result;
     }
 
-    private int divRest2(String elem) {
+    private int builtHashValueStrich(String elem) {
         int result = 0;
         byte[] tmp = elem.getBytes();
         for (int i = 0; i < elem.length(); i++) {
-            result = result + (1 + (tmp[i] % (prime - 2)));
+            result = result + (tmp[i] % (m - 2));
         }
-        return result;
+        return result + 1;
     }
 
     @Override
     public void insert(String elem) {
-        int sondier = sondieren(elem);
-        if (sondier == Integer.MIN_VALUE) {
+        HashObject hashObject = new HashObject(elem);
+        int pos = hashFunction(hashObject);
+        if (pos == Integer.MIN_VALUE) {
             System.err.println("Element \"" + elem + "\" konnte nicht einsortiert werden");
-        } else {
-            int pos = sondier;
-            hashTable[pos] = elem;
+        } else if (pos != Integer.MAX_VALUE) {
+            hashTable[pos] = hashObject;
         }
-//        out();
+        // out();
     }
 
     @Override
     public int find(String elem) {
-        int hash = divRest(elem);
-        int count = 0;
-
-        if (STRATEGY.equals("L")) {
-            for (int i = hash; i < fileInput.size(); i++) {
-                if (hashTable[i].equals(elem)) {
-                    count++;
-                }
-            }
-            for (int i = 0; i < hash; i++) {
-                if (hashTable[i].equals(elem)) {
-                    count++;
-                }
-            }
-        } else if (STRATEGY.equals("Q")) {
-            for (int i = 0; i < fileInput.size() + 100; i++) {
-                // TODO: zaehlt Elemente doppelt!!
-                int n = (int) (hash - (Math.pow(-1, i) * Math.pow(Math.ceil(i / 2), 2)));
-                n = n < 0 ? Math.floorMod(n, primeQ) : (n % primeQ);
-
-                System.err.println(hashTable.length);
-                if (hashTable[n % fileInput.size()].equals(elem)) {
-                    count++;
-                }
-            }
-        } else if (STRATEGY.equals("B")) {
-
+        HashObject hashObject = new HashObject(elem);
+        int pos = hashFunction(hashObject);
+        if(pos == Integer.MAX_VALUE) {
+            System.err.println(0);
+            return 0;
+        } else if(hashTable[pos] == null) {
+            System.err.println(-1);
+            return -1;
         } else {
-            return Integer.MIN_VALUE;
+            System.err.println(pos);
+            System.err.println(hashTable[pos].getValue());
+            out();
+            return hashTable[pos].getVorkommen();
         }
-
-        return count;
     }
 
-    private int berechnePrimZahl(int start) {
-        int n = start;
-        boolean b = false;
-        while (!b) {
-            // check if n is a multiple of 2
-            if (n % 2 == 0) {
-                b = false;
-                n++;
-            }
-            // if not, then just check the odds
-            for (int i = 3; i * i <= n; i += 2) {
-                if (n % i == 0) {
-                    b = false;
-                    n++;
-                }
-            }
-            b = true;
-        }
-        return n;
-    }
-
-    private int berechnePrimZahlQ(int start) {
-        int result = 0;
-        boolean b = false;
-
-        while (!b) {
-            int prime = berechnePrimZahl(start);
-            if (((prime - 3) / 4) % 2 == 0) {
-                b = true;
-                result = prime;
-            }
-            start = prime + 1;
-        }
-        return result;
-    }
-
-    public static void main(String[] args) {
-        AdtHashmap hash = AdtHashmapImpl.create("L", "doc/lang.txt");
-
-        hash.log();
-        System.err.println("fertig");
-    }
-    
     @Override
     public void log() {
         PrintWriter writer = null;
         try {
-             writer = new PrintWriter("log.txt", "UTF-8");
-            
+            writer = new PrintWriter("log.txt", "UTF-8");
+            int woerterZaehlen = 0;
             Set<String> set = new HashSet<String>(fileInput);
             Iterator<String> iter = set.iterator();
-            while(iter.hasNext()) {
+            while (iter.hasNext()) {
                 String elem = iter.next();
-                writer.write(elem + ": " + this.find(elem) + "\n");
+                int findResult = this.find(elem);
+                writer.write(elem + ": " + findResult + "\n");
+                woerterZaehlen += findResult;
             }
+            writer.write("\nGesamt: " + woerterZaehlen + "\n");
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         } catch (UnsupportedEncodingException e) {
@@ -264,13 +263,13 @@ public class AdtHashmapImpl implements AdtHashmap {
             writer.close();
         }
     }
-    
+
     @Override
     public long insertRuntime(String elem) {
-        // TODO: laeubt ueber das #create()
+        // TODO: laeuft ueber das #create()
         return 0;
     }
-    
+
     @Override
     public long findRuntime(String elem) {
         long start = System.nanoTime();
@@ -279,9 +278,24 @@ public class AdtHashmapImpl implements AdtHashmap {
     }
 
     private static void out() {
-        for (int i = 0; i < hashTable.length; i++) {
-            System.err.print("hashTable[" + i + "] = " + hashTable[i] + "   ");
+        for (int i = 0; i < m; i++) {
+            if (hashTable[i] != null) {
+                System.err.print("hashTable[" + i + "] = " + hashTable[i].getValue() + "("
+                        + hashTable[i].getVorkommen() + ")" + "   ");
+            }
         }
         System.err.println();
     }
+    
+    public static void main(String[] args) {
+        AdtHashmap hash = AdtHashmapImpl.create("Q", 10);
+        hash.dateiImport("doc/test.txt", 11);
+
+//        out();
+
+        System.err.println(hash.find("lorem"));
+        hash.log();
+        System.err.println("fertig");
+    }
+
 }
