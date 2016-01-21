@@ -82,108 +82,124 @@ public class AdtHashmapImpl implements AdtHashmap {
         }
     }
 
-    /**
-     * Position 0..(n-1)
-     * 
-     * @return
-     */
-    private int hashFunction(HashObject hashObject) {
-        int hash = builtHashValue(hashObject.getValue());
-
-        if (STRATEGY.equals("L")) {
-            for (int i = hash; i >= 0; i--) {
-                i = i % m;
-                if (hashTable[i] == null) {
-                    return i;
-                } else if (hashObject.getValue().equals(hashTable[i].getValue())) {
-                    hashTable[i].inkrementVorkommen();
-                    return Integer.MAX_VALUE;// doppelte Vorkommen erkannt
-                }
-                hashTable[i].inkrementKollision();
-            }
-            for (int i = m; i >= hash; i--) {
-                int j = i % m;
-                if (hashTable[j] == null) {
-                    return i;
-                } else if (hashObject.getValue().equals(hashTable[j].getValue())) {
-                    hashTable[j].inkrementVorkommen();
-                    return Integer.MAX_VALUE;// doppelte Vorkommen erkannt
-                }
-            }
-        } else if (STRATEGY.equals("Q")) {
-            for (int i = 0; i < m * 2; i++) {
-                int n = (int) (hash - (Math.pow(-1, i) * Math.pow(Math.ceil(i / 2), 2)));
-                n = n < 0 ? Math.floorMod(n, m) : (n % m);
-
-                if (hashTable[n] == null) {
-                    return n;
-                } else if (hashObject.getValue().equals(hashTable[n].getValue())) {
-                    hashTable[n].inkrementVorkommen();
-                    return Integer.MAX_VALUE;// doppelte Vorkommen erkannt
-                } else {
-                    hashTable[n].inkrementKollision();
-                }
-            }
-        } else if (STRATEGY.equals("B")) {
-            for (int i = 0; i < m * 2; i++) {
-                out();
-                int currentHash = doubleHashing(hash, hashObject.getValue(), hashObject.getKollision());
-                if (hashTable[currentHash] == null) {
-                    return currentHash;
-                } else {
-                    HashObject existingElem = hashTable[hash];
-                    hashObject.inkrementKollision();
-                    int nextIndexOfNewElem = doubleHashing(hash, hashObject.getValue(), hashObject.getKollision());
-                    int nextIndexOfExistingElem = doubleHashing(hash, existingElem.getValue(), existingElem.getKollision() + 1);
-                    if(existingElem.getValue().equals(hashObject.getValue())) {
-                        existingElem.inkrementVorkommen();
-                        existingElem.inkrementKollision();
-                        return Integer.MAX_VALUE; // doppelte Vorkommen erkannt
-                    } else {
-                        if(hashTable[nextIndexOfNewElem] == null) {
-//                            hashObject.inkrementKollision();
-                            return nextIndexOfNewElem;
-                        } else if(hashTable[nextIndexOfExistingElem] == null) {
-                            hashTable[nextIndexOfExistingElem] = existingElem;
-                            hashTable[currentHash] = null;
-                            hashObject.inkrementKollision();
-                            return currentHash;
-                        } else {
-                            hashObject.inkrementKollision();
-                        }
-                    }
-                }
-//                else {
-//                    if (hashObject.getValue().equals(hashTable[currentHash].getValue())) {
-//                        hashTable[currentHash].inkrementVorkommen();
-//                        return Integer.MAX_VALUE;// doppelte Vorkommen erkannt
-//                    }
-//
-//                    hashObject.inkrementKollision();
-//                    int nextIndexOfNewElem = doubleHashing(hash, hashObject.getValue(), hashObject.getKollision());
-//                    if (hashTable[nextIndexOfNewElem] != null) {
-//                        HashObject existingElem = hashTable[hash];
-//                        int nextIndexOfExistingElem = doubleHashing(hash, existingElem.getValue(),
-//                                existingElem.getKollision() + 1);
-//                        if (hashTable[nextIndexOfExistingElem] == null) {
-//                            hashTable[nextIndexOfExistingElem] = existingElem;
-//                            hashTable[hash] = null;
-//                        }
-//                    } else {
-//                        hashObject.dekrementKollision();
-//                        return nextIndexOfNewElem; // ergaenzt .. loest nicht das Problem
-//                    }
-//                }
-            }
-        }
-        return Integer.MIN_VALUE;
+    private int linearNext(int j) {
+        j--;
+        j = j < 0 ? Math.floorMod(j, m) : (j % m);
+        return j;
     }
 
-    private int doubleHashing(int hash, String elem, int j) {
-        int n = (int) (hash - (j * builtHashValueStrich(elem)));
+    private int quadraticNext(HashObject hashObject, int hash) {
+        int j = hashObject.getKollision();
+        int n = (int) (hash - (Math.pow(-1, j) * Math.pow(Math.ceil(j / 2.0), 2)));
+        n = n < 0 ? Math.floorMod(n, m) : (n % m);
+        return n;
+    }
+
+    private int doubleHashing(HashObject hashObject, int hash, int j) {
+        int n = (int) (hash - (j * builtHashValueStrich(hashObject.getValue())));
         n = n < 0 ? Math.floorMod(n, m) : (n % m);
 
         return n;
+    }
+
+    /**
+     * Position 0..(n-1)
+     * 
+     * @param j
+     *            , Anzahl der Kollisionen
+     * @return
+     */
+    private int hashFunction(HashObject hashObject, int hash) {
+        // hashObject.inkrementKollision();
+
+        if (STRATEGY.equals("L")) {
+            return linearNext(hash);
+        } else if (STRATEGY.equals("Q")) {
+            return quadraticNext(hashObject, hash);
+        } else if (STRATEGY.equals("B")) {
+            HashObject existingElem = hashTable[hash];
+            int nextIndexOfNewElem = doubleHashing(hashObject, hash, hashObject.getKollision());
+            int nextIndexOfExistingElem = doubleHashing(existingElem, hash, existingElem.getKollision() + 1);
+            if (hashObject.getValue().equals(existingElem.getValue())) {
+            hashTable[hash].inkrementVorkommen();
+            return Integer.MAX_VALUE;
+            } else if (hashTable[nextIndexOfNewElem] == null) {
+                return nextIndexOfNewElem;
+            } else if (hashObject.getValue().equals(hashTable[nextIndexOfNewElem].getValue())) {
+                hashTable[nextIndexOfNewElem].inkrementVorkommen();
+                return Integer.MAX_VALUE;
+            } else if (hashTable[nextIndexOfExistingElem] == null) {
+                hashTable[nextIndexOfExistingElem] = existingElem;
+                hashTable[hash] = null;
+                return hash;
+            } else {
+                hashObject.inkrementKollision();
+                hashFunction(hashObject, nextIndexOfNewElem);
+            }
+        }
+        return Integer.MIN_VALUE;
+        // for (int i = m; i >= hash; i--) {
+        // int j = i % m;
+        // if (hashTable[j] == null) {
+        // return i;
+        // } else if (hashObject.getValue().equals(hashTable[j].getValue()))
+        // {
+        // hashTable[j].inkrementVorkommen();
+        // return Integer.MAX_VALUE;// doppelte Vorkommen erkannt
+        // }
+        // }
+        // } else if (STRATEGY.equals("Q")) {
+        // for (int i = 0; i < m * 2; i++) {
+        // int n = (int) (hash - (Math.pow(-1, i) * Math.pow(Math.ceil(i /
+        // 2), 2)));
+        // n = n < 0 ? Math.floorMod(n, m) : (n % m);
+        //
+        // if (hashTable[n] == null) {
+        // return n;
+        // } else if (hashObject.getValue().equals(hashTable[n].getValue()))
+        // {
+        // hashTable[n].inkrementVorkommen();
+        // return Integer.MAX_VALUE;// doppelte Vorkommen erkannt
+        // } else {
+        // hashTable[n].inkrementKollision();
+        // }
+        // }
+        // } else if (STRATEGY.equals("B")) {
+        // for (int i = 0; i < m * 2; i++) {
+        // out();
+        // int currentHash = doubleHashing(hash, hashObject.getValue(),
+        // hashObject.getKollision());
+        // if (hashTable[currentHash] == null) {
+        // return currentHash;
+        // } else {
+        // HashObject existingElem = hashTable[hash];
+        // hashObject.inkrementKollision();
+        // int nextIndexOfNewElem = doubleHashing(hash,
+        // hashObject.getValue(), hashObject.getKollision());
+        // int nextIndexOfExistingElem = doubleHashing(hash,
+        // existingElem.getValue(),
+        // existingElem.getKollision() + 1);
+        // if (existingElem.getValue().equals(hashObject.getValue())) {
+        // existingElem.inkrementVorkommen();
+        // existingElem.inkrementKollision();
+        // return Integer.MAX_VALUE; // doppelte Vorkommen erkannt
+        // } else {
+        // if (hashTable[nextIndexOfNewElem] == null) {
+        // // hashObject.inkrementKollision();
+        // return nextIndexOfNewElem;
+        // } else if (hashTable[nextIndexOfExistingElem] == null) {
+        // hashTable[nextIndexOfExistingElem] = existingElem;
+        // hashTable[currentHash] = null;
+        // hashObject.inkrementKollision();
+        // return currentHash;
+        // } else {
+        // hashObject.inkrementKollision();
+        // }
+        // }
+        // }
+        // }
+        // }
+
     }
 
     /**
@@ -213,31 +229,55 @@ public class AdtHashmapImpl implements AdtHashmap {
     @Override
     public void insert(String elem) {
         HashObject hashObject = new HashObject(elem);
-        int pos = hashFunction(hashObject);
-        if (pos == Integer.MIN_VALUE) {
-            System.err.println("Element \"" + elem + "\" konnte nicht einsortiert werden");
-        } else if (pos != Integer.MAX_VALUE) {
-            hashTable[pos] = hashObject;
+        int hash = builtHashValue(hashObject.getValue());
+        if (hashTable[hash] == null) {
+            hashTable[hash] = hashObject;
+            out();
+        } else {
+            if(hashTable[hash].getValue().equals(hashObject.getValue())) {
+                hashTable[hash].inkrementVorkommen();
+            } else {
+                for (int i = 0; i < m; i++) {
+                    hashObject.inkrementKollision();
+                    int pos = hashFunction(hashObject, hash);
+                    if (pos != Integer.MAX_VALUE) {
+                        hash = pos;
+                        if (hashTable[hash] == null) {
+                            hashTable[hash] = hashObject;
+                            out();
+                            break;
+                        } else if (hashTable[hash].getValue().equals(hashObject.getValue())) {
+                            hashTable[hash].inkrementVorkommen();
+                            hashTable[hash].inkrementKollision();
+                            break;
+                        } else {
+                            hashTable[hash].inkrementKollision();
+                        }
+                    } else {
+                        break;
+                    }
+                }
+            }
         }
-        // out();
     }
 
     @Override
     public int find(String elem) {
-        HashObject hashObject = new HashObject(elem);
-        int pos = hashFunction(hashObject);
-        if(pos == Integer.MAX_VALUE) {
-            System.err.println(0);
-            return 0;
-        } else if(hashTable[pos] == null) {
-            System.err.println(-1);
-            return -1;
-        } else {
-            System.err.println(pos);
-            System.err.println(hashTable[pos].getValue());
-            out();
-            return hashTable[pos].getVorkommen();
-        }
+        // HashObject hashObject = new HashObject(elem);
+        // int pos = hashFunction(hashObject);
+        // if (pos == Integer.MAX_VALUE) {
+        // System.err.println(0);
+        // return 0;
+        // } else if (hashTable[pos] == null) {
+        // System.err.println(-1);
+        // return -1;
+        // } else {
+        // System.err.println(pos);
+        // System.err.println(hashTable[pos].getValue());
+        // out();
+        // return hashTable[pos].getVorkommen();
+        // }
+        return 0;
     }
 
     @Override
@@ -286,12 +326,15 @@ public class AdtHashmapImpl implements AdtHashmap {
         }
         System.err.println();
     }
-    
-    public static void main(String[] args) {
-        AdtHashmap hash = AdtHashmapImpl.create("Q", 10);
-        hash.dateiImport("doc/test.txt", 11);
 
-//        out();
+    public static void main(String[] args) {
+        int b = (int) (Math.ceil(2.0 / 3));
+        System.err.println("out: " + b);
+
+        AdtHashmap hash = AdtHashmapImpl.create("Q", 10);
+        hash.dateiImport("doc/kurz.txt", 101);
+
+        out();
 
         System.err.println(hash.find("lorem"));
         hash.log();
