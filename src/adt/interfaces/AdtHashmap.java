@@ -8,7 +8,7 @@ public interface AdtHashmap {
     
     public void insert(String elem);
     
-    public void dateiImport(String filename, int size);
+    public void dataImport(String filename, int size);
     
     public int find(String elem);
     
